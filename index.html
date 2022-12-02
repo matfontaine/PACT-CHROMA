@@ -1,0 +1,258 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<title>PACT - Module Chroma</title>
+
+		<link rel="stylesheet" href="css/reset.css">
+		<link rel="stylesheet" href="css/reveal.css">
+		<link rel="stylesheet" href="css/theme/telecom.css">
+
+		<!-- Theme used for syntax highlighting of code -->
+		<link rel="stylesheet" href="lib/css/github.css">
+
+		<!-- Printing and PDF exports -->
+		<script>
+			var link = document.createElement( 'link' );
+			link.rel = 'stylesheet';
+			link.type = 'text/css';
+			link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+			document.getElementsByTagName( 'head' )[0].appendChild( link );
+		</script>
+	</head>
+	<body>
+		<div class="reveal">
+			<div class="slides">
+
+				<section class="cover" data-background=""  data-state="no-title-footer no-progressbar has-dark-background">
+
+					<h2 id='coverh2'>Module Descripteurs audio "chromas"</h2>
+					<h1  id='title_seminar'> PACT</h1>
+					<h3><a href="https://matfontaine.github.io/PACT-CHROMA", id='github_url'>matfontaine.github.io/PACT-CHROMA</a></h3>
+					<p id='coverauthors'>
+						Mathieu FONTAINE<br />
+						mathieu.fontaine@telecom-paris.fr
+					</p>
+					<p id="date">
+					2022-2023</br>
+					</p>
+					<p>
+					<img src="css/theme/img/logo-Telecom.svg" id="telecom" class="logo" alt="">
+					<aside class="notes">
+						<ul><li>We will consider historical audio source separation technique</li>
+									<li>e.g. no deep learning extensions or nonnegative matrix factorization</li>
+								<li>the Handbook for that course is available on the moodle (PAM/Audio_source_separation)</li>
+						</ul>
+					</aside>
+				</section>
+
+				<!-- Outline of the presentation -->
+				<section>
+				<h1>Attentes du module</h1>
+				<ul>
+					<li>Comprendre les chromas</li>
+					<li>Implémentation à la main des chromas avec la librairie Python</li>
+					<li>Application au projet PACT (pourquoi ce module est adapté etc.)</li>
+					<li>Résultats avec la méthode implémentée + comparaison avec librosa</li>
+				</ul>
+
+				<h2>Livrable</h2>
+				<ul>
+					<li>Code de votre groupe en Python avec quelques résultats.</li>
+				</ul>
+
+</section>
+
+<section>
+	<h1>Plan</h1>
+	<h2>I - Transformée de Fourier usuels </h2>
+	<h2>II - Chromas</h2>
+</section>
+<section class="cover" data-background="" data-state="no-title-footer no-progressbar has-dark-background">
+	<h2 id='coverh2'>I - Transformée de Fourier usuels</h2>
+
+</section>
+<section>
+	<h2>La transformée de Fourier discrète</h2>
+Soit un signal discret $x_0,\dots,x_{N-1}$. Sa transformée de Fourier (discrète) est: 
+
+<center>$$
+X(f) = \sum_{n=0}^{N-1}x_ne^{-i\frac{2\pi f n}{N}}
+$$
+</center>
+<ul>
+	<li>On obtient une représentation fréquentielle du signal</li>
+	<li>Complexité algorithmique : $O(N^2)$</li>
+</ul></br>
+Il existe une version édulcorée qui réduit la complexité $O(N^2)$ en $O(N\log(N))\\$ (cf. <a href ="https://en.wikipedia.org/wiki/Cooley%E2%80%93Tukey_FFT_algorithm">Cooley-Tukey FFT algorithm</a>)</br>
+
+<center><figure>
+<img src="figures/images/fft.jpg" width="65%">
+<figcaption><em>Figure : champ d'une Baleine. On remarque l'activité dans les basses fréquences.</em></figcaption>
+</figure>
+</center>
+<p>
+<div class="remarque">On emploiera la FFT dans la suite.</div>
+</p>
+</section>
+
+
+<section>
+	<h2>Transformée de Fourier à Court Terme (TFCT)</h2>
+	<ul>
+		<li>Découpage d'un signal en plusieurs séquences</li>
+		<li>multiplication par un fenêtrage (Pourquoi ? <em>cf.</em> <a href="https://perso.telecom-paristech.fr/ladjal/PDFS/OASIS.pdf">poly OASIS</a>) </li>
+		<li>FFT sur chacune des séquences</li>
+	</ul>
+	<center><figure>
+		<img src="figures/images/STFT.png" width="50%">
+		<figcaption><em>TFCT d'un signal de parole (selon Laroche)</em></figcaption>
+		</figure>
+		</center>	
+ <div class="remarque">On obtient un signal "temps-fréquence" $X(f,t)$</div>
+</section>
+
+<section>
+<h2>Spectrogramme de puissance</h2>
+<ul><li>Module au carré des coefficients</li>
+<center>$$
+	S(f,t) = |X(f,t)|^2 \qquad\qquad\qquad \texttt{(Spectrogramme de Puissance)}
+	$$
+</center>
+<li>Pour une meilleure représentation, on calcule le log du SP.</li>
+</ul>
+<center><figure>
+	<img src="figures/background.png" width="70%">
+	<figcaption><em>Figure : Log-Spectrogramme d'un signal de parole.</em></figcaption>
+	</figure>
+	</center>
+</section>
+
+
+<section class="cover" data-background="" data-state="no-title-footer no-progressbar has-dark-background">
+	<h2 id='coverh2'>II - Chromas</h2>
+
+</section>
+
+<section>
+	<h2>Motivation</h2>
+	<ul>
+		<li>La musique occidentale "classique" est bien tempérée</li>
+		<li>Elle est notamment représentée par $12$ demi-tons</li>
+		<li>Une telle échelle permettrait alors la reconnaissance d'accord</li>
+	</ul>
+</section>
+<section>
+	<h2>Procédé de base (selon FUJISHIMA91)</h2>
+	<ul><li>On applique une TFCT et on obtient des $X(f,t)$</li>
+		<li>On ne converse que les $N/2$ premières fréquences</li>
+	<li>On calcule un Pitch Class Profile (PCP)</li>
+	<center>
+	$$ \forall p \in \llbracket 0, 11 \rrbracket,
+	\text{PCP}(p,t) = \sum_{f \text{ tel que } M(f)=p} |X(f,t)|^2
+	$$</center>
+	où
+	<center>
+		$$ \forall f \in \llbracket 0, \frac{N}{2} \rrbracket,  M(f) = \begin{cases}
+		-1 & \text{si f=0} \\
+		\text{round}(12\log_{2}(\frac{ \frac{f_{ech} f}{N}}{f_{ref}}))&  \text{mod 12}
+		\end{cases}
+		$$</center>
+	Où 
+	<ul>
+	<li>$f_{ref}$ est la fréquence de référence représentant la première note du chroma ($C_3 \approx 261.63$ Hz)</li>
+	<li>$f_{ech} \frac{f}{N}$ est la fréquence (en Hz) d'un $X(f,t), \forall t$</li>
+	</ul>
+</br>
+	<div class="remarque">
+		Comment améliorer la représentation pour être adaptée à l'échelle musicale ?
+	</div>
+</section>
+
+<section>
+<h2>Transformée à $Q$ constant [selon Brown91] (1/2)</h2>
+<ul>
+	<li>Idée: avoir un espacement des bandes fréquentielles adaptées à l'échelle musicale </li>
+	<li>Contrainte : résolution dépendant de la fréquence</li>
+	<li> On souhaite un banc de filtre en $1/24^{ème}$ d'octave (un quart de ton)</li>
+	<li>La $m^{ème}$ composante spectrale est définie par $f_m = (2^{1/24})^mf_{min}$, $f_{min}$ inférieure à la fréquence de départ</li>
+	<li>Soit $\Delta_{f}$ la largeur de bande (ou résolution spectrale)</li>
+	<li>Pour une fréquence $f$, on a  $\Delta_{f} = (2^{1/24} - 1)f \approx 0.029 f$</li>
+	<li>Si on veut un ratio constant entre la fréquence et la résolution on a $Q = f/\Delta_f \approx 34$</li>
+
+</ul>
+</section>
+<section>
+	<h2>Transformée à $Q$ constant [selon Brown91] (2/2)</h2>
+	<ul>
+	<li>Avec une fréquence d'échantillonnage $f_{ech}$, on a la longueur de fenetre suivante : </li>
+	<center>$$
+		N(m) = f_{ech}/\Delta_{f_m} = f_{ech}/\Delta_{f_m}
+		$$	
+	</center>
+	<li>La TFCT est alors changé par (où $t$ est un partitionnement; $w$ une fenêtre voir Brown91 pour les exemples):</li>
+	<center>$$X_{Q}(f,t) = \sum_{n=0}^{N(m)-1} w(k,n)x_{t}(n)e^{-i\frac{2\pi Qn}{N(m)}}
+		$$	
+	</center>
+</li>
+</ul>
+<div class="multiCol">
+	<div class="col">
+		<center><figure>
+			<img src="figures/images/STFT_violin.png" width="100%">
+			<figcaption><em>[Brown91]: Log-Spectrogramme d'un violon.</em></figcaption>
+			</figure>
+			</center>
+	</div>
+	<div class="col">
+		<center><figure>
+			<img src="figures/images/Q_Violin.png" width="100%">
+			<figcaption><em>[Brown91]: Transformée à Q constant d'un violon.</em></figcaption>
+			</figure>
+			</center>
+	</div>
+</div>
+</section>
+</div>
+<div class='footer'>
+	<img src="css/theme/img/logo-Telecom.svg" alt="Logo"/>
+	<div id="middlebox">PACT - Module CHROMA</div>
+	<ul>
+	</ul>
+</div>
+			</div>
+
+		</div>
+
+		<script src="js/reveal.js"></script>
+
+		<script>
+			// More info about config & dependencies:
+			// - https://github.com/hakimel/reveal.js#configuration
+			// - https://github.com/hakimel/reveal.js#dependencies
+			Reveal.initialize({
+				controls: false,
+				progress: true,
+				history: true,
+				center: false,
+				slideNumber: true,
+				minScale: 0.1,
+				maxScale: 5,
+				transition: 'none', //
+
+				dependencies: [
+					{ src: 'plugin/markdown/marked.js' },
+					{ src: 'plugin/markdown/markdown.js' },
+					{ src: 'plugin/notes/notes.js', async: true },
+					{ src: 'plugin/math-katex/math-katex.js', async: true },
+					{ src: 'plugin/reveald3/reveald3.js' },
+					{ src: 'plugin/highlight/highlight.js', async: true }
+				]
+			});
+		</script>
+
+	</body>
+
+</html>
